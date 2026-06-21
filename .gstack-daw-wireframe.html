@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Composer DAW wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eee; color: #222; font: 14px/1.35 system-ui, sans-serif; }
+    button { background: #fff; border: 1px solid #777; border-radius: 4px; padding: 7px 11px; }
+    .app { width: 1440px; height: 900px; margin: 0 auto; background: #fafafa; display: grid; grid-template-rows: 58px 1fr 300px; }
+    .transport { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #777; }
+    .transport .spacer { flex: 1; }
+    .record { border: 2px solid #333; border-radius: 50%; width: 34px; height: 34px; padding: 0; }
+    .main { display: grid; grid-template-columns: 230px 1fr; min-height: 0; }
+    .sidebar { border-right: 1px solid #888; padding: 14px; }
+    .sidebar h2 { margin: 0 0 14px; font-size: 18px; }
+    .step { padding: 11px 8px; border-bottom: 1px solid #ccc; }
+    .step.active { background: #ddd; border: 1px solid #777; }
+    .member { display: grid; grid-template-columns: 32px 1fr auto; gap: 8px; align-items: center; padding: 9px 4px; border-bottom: 1px solid #ccc; }
+    .member .icon { width: 30px; height: 30px; border: 1px solid #777; display: grid; place-items: center; border-radius: 50%; }
+    .hint { margin-top: 18px; padding: 10px; border: 1px dashed #888; }
+    .arrangement { overflow: hidden; }
+    .ruler { height: 32px; margin-left: 150px; display: grid; grid-template-columns: repeat(8, 1fr); border-bottom: 1px solid #aaa; }
+    .ruler span { padding: 7px; border-left: 1px solid #ccc; }
+    .lane { min-height: 60px; display: grid; grid-template-columns: 150px 1fr; border-bottom: 1px solid #bbb; }
+    .track { padding: 10px; border-right: 1px solid #aaa; display: grid; grid-template-columns: 1fr auto auto; gap: 5px; align-items: center; }
+    .track small { grid-column: 1 / -1; color: #555; }
+    .clips { display: grid; grid-template-columns: repeat(8, 1fr); padding: 7px; gap: 4px; background-image: linear-gradient(90deg, transparent calc(12.5% - 1px), #ddd 0); background-size: 12.5% 100%; }
+    .clip { border: 1px solid #666; background: #e5e5e5; padding: 9px; border-radius: 3px; overflow: hidden; white-space: nowrap; }
+    .clip.selected { border: 2px solid #222; background: #fff; }
+    .empty { grid-column: span 8; border: 1px dashed #999; color: #666; padding: 12px; }
+    .editor { border-top: 1px solid #777; display: grid; grid-template-columns: 230px 1fr; min-height: 0; }
+    .inspector { padding: 14px; border-right: 1px solid #888; }
+    .toggle { display: flex; margin: 10px 0; }
+    .toggle button { flex: 1; border-radius: 0; }
+    .toggle .active { background: #333; color: #fff; }
+    .piano { display: grid; grid-template-columns: 70px 1fr; overflow: hidden; }
+    .keys { background: repeating-linear-gradient(#fff 0 24px, #aaa 25px); border-right: 1px solid #777; }
+    .grid { position: relative; background: repeating-linear-gradient(0deg, transparent 0 24px, #ccc 25px), repeating-linear-gradient(90deg, transparent 0 89px, #ccc 90px); }
+    .note { position: absolute; height: 21px; border: 1px solid #333; background: #ddd; padding-left: 5px; cursor: move; }
+    .selection-note { background: #fff; border: 2px solid #222; }
+    .chord-tool { position: absolute; left: 545px; top: 28px; width: 320px; background: #fff; border: 2px solid #333; padding: 12px; box-shadow: 5px 5px 0 #bbb; z-index: 2; }
+    .chord-tool h3 { margin: 0 0 8px; font-size: 15px; }
+    .chord-fields { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 6px; }
+    .chord-fields button { padding: 6px; }
+    .chord-tool .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; }
+    .status { position: absolute; right: 14px; bottom: 10px; color: #555; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <!-- Transport remains small and stable. Advanced settings open only on demand. -->
+    <header class="transport">
+      <button>New</button><button>Open</button><button>Save</button>
+      <span class="spacer"></span>
+      <button>|&lt;</button><button>Play</button><button>Stop</button><button class="record" aria-label="Record">●</button>
+      <button>Tempo 120</button><button>4/4</button><button>Key C Major</button><button>Metronome</button>
+      <span class="spacer"></span><button>Export WAV</button>
+    </header>
+
+    <section class="main">
+      <!-- Instruments are dynamic band members. Adding a member creates an ordinary DAW track. -->
+      <aside class="sidebar">
+        <h2>Band members</h2>
+        <div class="member"><span class="icon">P</span><span><strong>Piano</strong><br><small>Warm Piano</small></span><button>...</button></div>
+        <div class="member"><span class="icon">G</span><span><strong>Guitar</strong><br><small>Clean Guitar</small></span><button>...</button></div>
+        <div class="member"><span class="icon">B</span><span><strong>Bass</strong><br><small>Finger Bass</small></span><button>...</button></div>
+        <div class="member"><span class="icon">D</span><span><strong>Drums</strong><br><small>Acoustic Kit</small></span><button>...</button></div>
+        <div class="member"><span class="icon">S</span><span><strong>Synth</strong><br><small>Soft Pad</small></span><button>...</button></div>
+        <button style="width:100%;margin-top:14px">+ Add instrument</button>
+        <button style="width:100%;margin-top:7px">+ Add audio track</button>
+        <div class="hint"><strong>Track basics</strong><br>Drag to reorder. Right-click to duplicate or remove. Each member has mute, solo, volume, and record controls.</div>
+      </aside>
+
+      <div class="arrangement">
+        <div class="ruler"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+        <div class="lane">
+          <div class="track"><strong>Piano</strong><button>M</button><button>S</button><small>Warm Piano · Vol 0 dB · ● Arm</small></div>
+          <div class="clips"><div class="clip selected" style="grid-column:span 4">Verse chords + melody</div><div class="clip" style="grid-column:span 4">Piano variation</div></div>
+        </div>
+        <div class="lane">
+          <div class="track"><strong>Guitar</strong><button>M</button><button>S</button><small>Clean Guitar · Vol -2 dB · ● Arm</small></div>
+          <div class="clips"><div class="clip" style="grid-column:span 2">C voicing</div><div class="clip" style="grid-column:span 2">Am voicing</div><div class="clip" style="grid-column:span 2">F voicing</div><div class="clip" style="grid-column:span 2">G voicing</div></div>
+        </div>
+        <div class="lane">
+          <div class="track"><strong>Bass</strong><button>M</button><button>S</button><small>Finger Bass · Vol -3 dB · ● Arm</small></div>
+          <div class="clips"><div class="clip" style="grid-column:span 8">Bass line</div></div>
+        </div>
+        <div class="lane">
+          <div class="track"><strong>Drums</strong><button>M</button><button>S</button><small>Acoustic Kit · Vol -1 dB · ● Arm</small></div>
+          <div class="clips"><div class="clip" style="grid-column:span 8">Pop groove · 2 fills</div></div>
+        </div>
+        <div class="lane">
+          <div class="track"><strong>Synth</strong><button>M</button><button>S</button><small>Soft Pad · Vol -5 dB · ● Arm</small></div>
+          <div class="clips"><div class="clip" style="grid-column:span 4">Pad chords</div><div class="empty" style="grid-column:span 4">Double-click to create MIDI clip</div></div>
+        </div>
+        <div class="lane">
+          <div class="track"><strong>Vocal</strong><button>M</button><button>S</button><small>Input 1 · Monitoring on · ● Armed</small></div>
+          <div class="clips"><div class="empty">Press R to record at any point while composing</div></div>
+        </div>
+      </div>
+    </section>
+
+      <!-- Chord insertion is contextual to the selected instrument track and writes real MIDI notes. -->
+      <section class="editor">
+      <aside class="inspector">
+        <strong>Piano · Verse MIDI clip</strong>
+        <p><button style="width:100%;font-weight:700">Insert chord… <small>Ctrl+K</small></button></p>
+        <p><button style="width:100%">Generate rhythm from notes…</button></p>
+        <hr>
+        <label>Grid<br><button style="width:100%;margin:5px 0 10px">1/8 ▼</button></label>
+        <label>Scale guide<br><button style="width:100%;margin:5px 0 10px">C Major · On ▼</button></label>
+        <label>Velocity<br><input type="range" style="width:100%"></label>
+        <small>The chord tool is available inside every pitched instrument track. It inserts editable notes, not a special chord object.</small>
+      </aside>
+      <div class="piano">
+        <div class="keys"></div>
+        <div class="grid">
+          <div class="note selection-note" style="left:40px;top:176px;width:130px">F3</div>
+          <div class="note selection-note" style="left:40px;top:126px;width:130px">A3</div>
+          <div class="note selection-note" style="left:40px;top:76px;width:130px">C4</div>
+          <div class="note" style="left:210px;top:151px;width:130px">G3</div>
+          <div class="note" style="left:210px;top:101px;width:130px">B3</div>
+          <div class="note" style="left:210px;top:51px;width:130px">D4</div>
+          <div class="chord-tool">
+            <h3>Insert chord at bar 3</h3>
+            <div class="chord-fields"><button>Root: F ▼</button><button>Type: Major ▼</button><button>Inversion: Root ▼</button></div>
+            <div class="actions"><span>Preview: F3 · A3 · C4</span><button style="background:#333;color:#fff">Insert notes</button></div>
+          </div>
+          <div class="status">Grid 1/8 · Scale highlight on · Velocity 82</div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
