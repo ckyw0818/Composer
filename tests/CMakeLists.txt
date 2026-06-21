@@ -17,7 +17,8 @@ set_tests_properties(unit.contracts PROPERTIES LABELS "unit;quick")
 composer_add_test_binary(composer_integration_tests
     IntegrationMain.cpp
     integration/AudioFoundationTests.cpp
-    integration/MidiSongFixtureTests.cpp)
+    integration/MidiSongFixtureTests.cpp
+    integration/PlaybackEngineTests.cpp)
 add_test(NAME integration.audio_foundation COMMAND composer_integration_tests)
 set_tests_properties(integration.audio_foundation PROPERTIES LABELS "integration;audio;release")
 

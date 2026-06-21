@@ -36,11 +36,13 @@ private:
 
     void startDueNotes(domain::ProjectSample sample) noexcept;
     [[nodiscard]] float renderSample(domain::ProjectSample sample) noexcept;
+    void seekTo(domain::ProjectSample sample) noexcept;  // reset voices + cursor for a discontinuity
 
     ProjectSnapshot snapshot_{};
     AudioSpec spec_{};
     std::array<Voice, kMaxVoices> voices_{};
     std::size_t cursor_{0};  // index of next note to activate, snapshot_.notes is start-sorted
+    domain::ProjectSample nextSample_{0};  // sample the cursor expects next (contiguity check)
 };
 
 }  // namespace composer::audio

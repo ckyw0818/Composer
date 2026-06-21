@@ -9,7 +9,7 @@ namespace composer::app {
 class ComposerApplication final : public juce::JUCEApplication {
 public:
     [[nodiscard]] const juce::String getApplicationName() override { return "Composer"; }
-    [[nodiscard]] const juce::String getApplicationVersion() override { return "0.1.0-s0"; }
+    [[nodiscard]] const juce::String getApplicationVersion() override { return "0.1.0-s1"; }
 
     void initialise(const juce::String&) override {
         window_ = std::make_unique<MainWindow>(getApplicationName());

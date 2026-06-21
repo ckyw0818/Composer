@@ -21,10 +21,21 @@ ProjectRenderer::ProjectRenderer(ProjectSnapshot snapshot) noexcept
 
 void ProjectRenderer::prepare(const AudioSpec& spec) {
     spec_ = spec;
-    cursor_ = 0;
+    seekTo(0);
+}
+
+void ProjectRenderer::seekTo(const domain::ProjectSample sample) noexcept {
     for (auto& voice : voices_) {
         voice = Voice{};
     }
+    // Position the cursor at the first note that starts at or after `sample`. Notes already
+    // sounding at the seek point are not retriggered in S1 (acceptable for a fresh seek/loop).
+    cursor_ = 0;
+    while (cursor_ < snapshot_.notes.size()
+        && snapshot_.notes[cursor_].startSample < sample) {
+        ++cursor_;
+    }
+    nextSample_ = sample;
 }
 
 void ProjectRenderer::startDueNotes(const domain::ProjectSample sample) noexcept {
@@ -77,6 +88,12 @@ float ProjectRenderer::renderSample(const domain::ProjectSample sample) noexcept
 }
 
 void ProjectRenderer::render(const RenderBlock& block) noexcept {
+    // If the caller jumped the timeline (loop wrap or transport seek), resync the note cursor and
+    // voices so playback stays correct. Contiguous block rendering (the fixture path) never seeks.
+    if (block.startSample != nextSample_) {
+        seekTo(block.startSample);
+    }
+
     for (std::size_t frame = 0; frame < block.frameCount; ++frame) {
         const auto sample = block.startSample + static_cast<domain::ProjectSample>(frame);
         float value = 0.0F;
@@ -87,6 +104,7 @@ void ProjectRenderer::render(const RenderBlock& block) noexcept {
             block.outputs[channel][frame] = value;
         }
     }
+    nextSample_ = block.startSample + static_cast<domain::ProjectSample>(block.frameCount);
 }
 
 }  // namespace composer::audio

@@ -50,9 +50,11 @@ std::size_t realtimeAllocationCount() noexcept {
 
 int runAudioFoundationTests();
 int runMidiSongFixtureTests();
+int runPlaybackEngineTests();
 
 int main() {
     const int foundation = runAudioFoundationTests();
     const int midiSong = runMidiSongFixtureTests();
-    return (foundation == 0 && midiSong == 0) ? 0 : 1;
+    const int playback = runPlaybackEngineTests();
+    return (foundation == 0 && midiSong == 0 && playback == 0) ? 0 : 1;
 }

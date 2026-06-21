@@ -50,6 +50,7 @@ add_library(composer_audio_runtime STATIC
     src/audio/runtime/CanonicalVerse.cpp
     src/audio/runtime/ClickRenderer.cpp
     src/audio/runtime/FakeAudioDevice.cpp
+    src/audio/runtime/PlaybackEngine.cpp
     src/audio/runtime/ProjectCompiler.cpp
     src/audio/runtime/ProjectRenderer.cpp)
 target_include_directories(composer_audio_runtime PUBLIC src)
@@ -67,9 +68,13 @@ if(COMPOSER_BUILD_APP AND MSVC)
     add_executable(composer_app WIN32
         src/app/Main.cpp
         src/app/MainComponent.cpp
-        src/app/MainComponent.h)
+        src/app/MainComponent.h
+        src/ui/TransportBar.cpp
+        src/ui/TrackList.cpp
+        src/ui/PianoRoll.cpp)
     target_link_libraries(composer_app PRIVATE
         composer_audio_runtime
+        composer_commands
         juce::juce_audio_utils
         juce::juce_gui_extra)
     target_compile_definitions(composer_app PRIVATE
