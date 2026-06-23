@@ -24,7 +24,8 @@ include(cmake/CompilerWarnings.cmake)
 # Pure, dependency-free domain layer: types, tempo map, chord theory, project model. Header-only
 # types plus the chord implementation. No JUCE, no filesystem, no device APIs.
 add_library(composer_domain STATIC
-    src/domain/Chord.cpp)
+    src/domain/Chord.cpp
+    src/domain/Rhythm.cpp)
 target_include_directories(composer_domain PUBLIC src)
 composer_enable_warnings(composer_domain)
 
@@ -37,6 +38,8 @@ composer_enable_warnings(composer_commands)
 
 # Persistence: deterministic project.json serialize/parse. Pure, no JUCE.
 add_library(composer_persistence STATIC
+    src/persistence/MidiFile.cpp
+    src/persistence/ProjectFile.cpp
     src/persistence/ProjectSerializer.cpp)
 target_include_directories(composer_persistence PUBLIC src)
 target_link_libraries(composer_persistence PUBLIC composer_domain)
@@ -45,6 +48,18 @@ composer_enable_warnings(composer_persistence)
 add_library(composer_audio_contracts INTERFACE)
 target_include_directories(composer_audio_contracts INTERFACE src)
 target_link_libraries(composer_audio_contracts INTERFACE composer_domain)
+
+add_library(composer_recording STATIC
+    src/recording/AudioFifo.cpp
+    src/recording/FakeRecordingDevice.cpp
+    src/recording/RecordingSession.cpp
+    src/recording/RecoveryJournal.cpp
+    src/recording/WavFile.cpp)
+target_include_directories(composer_recording PUBLIC src)
+target_link_libraries(composer_recording PUBLIC
+    composer_audio_contracts
+    composer_persistence)
+composer_enable_warnings(composer_recording)
 
 add_library(composer_audio_runtime STATIC
     src/audio/runtime/CanonicalVerse.cpp
@@ -57,7 +72,8 @@ target_include_directories(composer_audio_runtime PUBLIC src)
 target_link_libraries(composer_audio_runtime PUBLIC
     composer_audio_contracts
     composer_commands
-    composer_persistence)
+    composer_persistence
+    composer_recording)
 composer_enable_warnings(composer_audio_runtime)
 
 add_executable(composer_fixture src/app/FixtureMain.cpp)
@@ -69,12 +85,17 @@ if(COMPOSER_BUILD_APP AND MSVC)
         src/app/Main.cpp
         src/app/MainComponent.cpp
         src/app/MainComponent.h
+        src/ui/ArrangementBar.cpp
+        src/ui/ChordPopover.cpp
+        src/ui/MixerPanel.cpp
         src/ui/TransportBar.cpp
         src/ui/TrackList.cpp
-        src/ui/PianoRoll.cpp)
+        src/ui/PianoRoll.cpp
+        src/ui/WaveformEditor.cpp)
     target_link_libraries(composer_app PRIVATE
         composer_audio_runtime
         composer_commands
+        composer_recording
         juce::juce_audio_utils
         juce::juce_gui_extra)
     target_compile_definitions(composer_app PRIVATE

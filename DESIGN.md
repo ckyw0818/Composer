@@ -1278,6 +1278,24 @@ All five defaults are reversible within the specified architecture. None changes
 | Distribution rights verified | Blocked by release gate: official framework and asset terms must be checked before external distribution |
 | External reviewer consensus | Unavailable: private plan contents were not exported; primary review only |
 
+### Timeline Viewport Policy
+
+- The arrangement timeline and contextual piano roll own independent horizontal scroll and zoom
+  viewports. They share the transport playhead and absolute musical ticks, but navigating one view
+  never moves or rescales the other unexpectedly.
+- Selecting another MIDI clip resets the piano-roll scroll position to that clip's start while
+  preserving the user's zoom level.
+- The timeline is elastic and effectively unbounded to the right. Navigation grows in virtual
+  chunks; adding, moving, resizing, pasting, or inserting notes beyond the stored clip end extends
+  that clip in the same undoable command. Playback still ends at the last note rather than rendering
+  an infinite silent tail. The implementation uses signed 64-bit ticks, so its technical ceiling is
+  intentionally far beyond any practical song length rather than mathematical infinity.
+- Trackpad `deltaX` pans horizontally. `Shift+wheel` is the mouse-wheel fallback.
+- `Ctrl+wheel` and the native pinch gesture zoom the piano roll around the pointer. The musical
+  tick under the pointer remains fixed except when the clip boundary must clamp the viewport.
+- Note insertion floors to the start of the clicked grid cell. Note move and resize operations use
+  nearest-grid snapping; holding `Alt` temporarily bypasses snapping.
+
 ### Execution Order
 
 1. **S0 Foundation:** license inventory, pinned JUCE/CMake, module contracts, presets, test runner, fake device, canonical fixture and DX quick start.

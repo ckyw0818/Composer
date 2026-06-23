@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <new>
+#include <string_view>
 
 namespace {
 std::atomic<std::size_t> realtimeAllocations{0};
@@ -51,10 +52,26 @@ std::size_t realtimeAllocationCount() noexcept {
 int runAudioFoundationTests();
 int runMidiSongFixtureTests();
 int runPlaybackEngineTests();
+int runArrangementFixtureTests();
+int runRecordingFixtureTests();
 
-int main() {
+int main(const int argc, const char* const* argv) {
+    if (argc == 2) {
+        const std::string_view suite{argv[1]};
+        if (suite == "foundation") return runAudioFoundationTests();
+        if (suite == "midi-song") return runMidiSongFixtureTests();
+        if (suite == "playback") return runPlaybackEngineTests();
+        if (suite == "arrangement") return runArrangementFixtureTests();
+        if (suite == "recording") return runRecordingFixtureTests();
+        return 2;
+    }
     const int foundation = runAudioFoundationTests();
     const int midiSong = runMidiSongFixtureTests();
     const int playback = runPlaybackEngineTests();
-    return (foundation == 0 && midiSong == 0 && playback == 0) ? 0 : 1;
+    const int arrangement = runArrangementFixtureTests();
+    const int recording = runRecordingFixtureTests();
+    return (foundation == 0 && midiSong == 0 && playback == 0 && arrangement == 0
+               && recording == 0)
+        ? 0
+        : 1;
 }

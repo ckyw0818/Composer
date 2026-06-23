@@ -30,10 +30,14 @@ TransportBar::TransportBar(audio::PlaybackEngine& engine, const double tempoBpm)
     };
     styleButton(rewindButton_);
     styleButton(playButton_);
+    styleButton(recordButton_);
     styleButton(loopButton_);
+    styleButton(metronomeButton_);
 
     loopButton_.setClickingTogglesState(true);
     loopButton_.setToggleState(engine_.isLooping(), juce::dontSendNotification);
+    metronomeButton_.setClickingTogglesState(true);
+    metronomeButton_.setToggleState(engine_.isMetronomeEnabled(), juce::dontSendNotification);
 
     rewindButton_.onClick = [this] {
         engine_.rewind();
@@ -43,8 +47,14 @@ TransportBar::TransportBar(audio::PlaybackEngine& engine, const double tempoBpm)
         engine_.togglePlay();
         refresh();
     };
+    recordButton_.onClick = [this] {
+        if (onRecordClicked) onRecordClicked();
+    };
     loopButton_.onClick = [this] {
         engine_.setLooping(loopButton_.getToggleState());
+    };
+    metronomeButton_.onClick = [this] {
+        engine_.setMetronomeEnabled(metronomeButton_.getToggleState());
     };
 
     positionLabel_.setColour(juce::Label::textColourId, theme::textPrimary);
@@ -52,12 +62,22 @@ TransportBar::TransportBar(audio::PlaybackEngine& engine, const double tempoBpm)
     positionLabel_.setFont(juce::FontOptions{18.0F});
     addAndMakeVisible(positionLabel_);
 
-    tempoLabel_.setColour(juce::Label::textColourId, theme::textSecondary);
-    tempoLabel_.setJustificationType(juce::Justification::centredRight);
-    tempoLabel_.setFont(juce::FontOptions{16.0F});
-    tempoLabel_.setText(juce::String::formatted("%d BPM  4/4", static_cast<int>(tempoBpm_)),
-        juce::dontSendNotification);
-    addAndMakeVisible(tempoLabel_);
+    tempo_.setRange(20.0, 300.0, 1.0);
+    tempo_.setSliderStyle(juce::Slider::LinearHorizontal);
+    tempo_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 64, 24);
+    tempo_.setTextValueSuffix(" BPM");
+    tempo_.setTitle("Project tempo");
+    tempo_.setValue(tempoBpm_, juce::dontSendNotification);
+    tempo_.onValueChange = [this] {
+        const double value = tempo_.getValue();
+        if (value != tempoBpm_ && onTempoChanged) onTempoChanged(value);
+    };
+    addAndMakeVisible(tempo_);
+
+    signatureLabel_.setColour(juce::Label::textColourId, theme::textSecondary);
+    signatureLabel_.setJustificationType(juce::Justification::centredRight);
+    signatureLabel_.setText("4/4", juce::dontSendNotification);
+    addAndMakeVisible(signatureLabel_);
 
     refresh();
     startTimerHz(30);
@@ -79,10 +99,29 @@ void TransportBar::resized() {
     area.removeFromLeft(8);
     playButton_.setBounds(area.removeFromLeft(96));
     area.removeFromLeft(8);
+    recordButton_.setBounds(area.removeFromLeft(96));
+    area.removeFromLeft(8);
     loopButton_.setBounds(area.removeFromLeft(72));
+    area.removeFromLeft(8);
+    metronomeButton_.setBounds(area.removeFromLeft(72));
     area.removeFromLeft(16);
-    tempoLabel_.setBounds(area.removeFromRight(160));
+    signatureLabel_.setBounds(area.removeFromRight(44));
+    area.removeFromRight(8);
+    tempo_.setBounds(area.removeFromRight(210));
     positionLabel_.setBounds(area);
+}
+
+void TransportBar::setTempoBpm(const double beatsPerMinute) {
+    tempoBpm_ = beatsPerMinute;
+    tempo_.setValue(beatsPerMinute, juce::dontSendNotification);
+    refresh();
+}
+
+void TransportBar::setRecording(const bool recording) {
+    recordButton_.setToggleState(recording, juce::dontSendNotification);
+    recordButton_.setButtonText(recording ? "Stop Rec" : "Record");
+    recordButton_.setColour(juce::TextButton::buttonColourId,
+        recording ? theme::record : theme::raised);
 }
 
 void TransportBar::timerCallback() {

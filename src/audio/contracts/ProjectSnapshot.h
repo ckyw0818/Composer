@@ -1,5 +1,6 @@
 #pragma once
 
+#include "domain/Instrument.h"
 #include "domain/Types.h"
 
 #include <cstdint>
@@ -14,7 +15,21 @@ struct SnapshotNote final {
     domain::ProjectSample endSample{};  // half-open [start, end)
     domain::Pitch pitch{};
     float amplitude{};  // velocity scaled to 0..1
-    std::uint32_t voiceGroup{};  // track index, lets the renderer detune per instrument role
+    float pan{};  // -1 left, 0 centre, +1 right
+    domain::RenderTimbre timbre{domain::RenderTimbre::sine};
+    std::uint32_t voiceGroup{};  // stable track index used in deterministic voice seeding
+};
+
+struct SnapshotAudioClip final {
+    domain::ProjectSample startSample{};
+    std::int64_t sourceOffsetFrames{};
+    std::int64_t lengthFrames{};
+    int channels{1};
+    float gain{1.0F};
+    float pan{};
+    std::int64_t fadeInFrames{};
+    std::int64_t fadeOutFrames{};
+    std::vector<float> interleaved;
 };
 
 // Immutable render plan compiled from a domain::Project by ProjectCompiler. Notes are sorted by
@@ -24,6 +39,7 @@ struct ProjectSnapshot final {
     double sampleRate{48000.0};
     domain::ProjectSample lengthSamples{};
     std::vector<SnapshotNote> notes;
+    std::vector<SnapshotAudioClip> audioClips;
 };
 
 }  // namespace composer::audio

@@ -7,6 +7,7 @@
 #include "tests/TestRunner.h"
 
 #include <array>
+#include <algorithm>
 #include <vector>
 
 // Verifies the S1 playback engine: transport state, looping playhead, and a zero-allocation audio
@@ -81,6 +82,31 @@ int runPlaybackEngineTests() {
     engine.setPlayheadSamples(engine.lengthSamples());
     engine.process(block);
     tests.expect(!engine.isPlaying(), "non-looping transport must stop at the end");
+
+    // Metronome follows the project tempo and remains audible even when every track is muted.
+    auto mutedProject = audio::CanonicalVerse::makeProject();
+    for (auto& track : mutedProject.tracks) track.muted = true;
+    engine.setProject(mutedProject, 2);
+    engine.setMetronomeEnabled(true);
+    engine.rewind();
+    engine.play();
+    for (auto& channel : channelData) std::fill(channel.begin(), channel.end(), 0.0F);
+    tests::resetRealtimeAllocationCount();
+    {
+        audio::RealtimeSafety::Scope scope;
+        engine.process(block);
+    }
+    bool clickAudible = false;
+    for (const float sample : channelData[0]) {
+        if (sample != 0.0F) {
+            clickAudible = true;
+            break;
+        }
+    }
+    tests.expect(clickAudible, "enabled metronome must render a beat click at the playhead");
+    tests.expect(tests::realtimeAllocationCount() == 0,
+        "metronome mixing must perform zero audio-thread allocations");
+    engine.setMetronomeEnabled(false);
 
     return tests.finish();
 }

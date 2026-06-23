@@ -96,6 +96,12 @@ private:
         out_ += ",\n";
         key("tracks");
         writeTracks(project.tracks);
+        out_ += ",\n";
+        key("audioTracks");
+        writeAudioTracks(project.audioTracks);
+        out_ += ",\n";
+        key("trackOrder");
+        writeEntityIds(project.trackOrder);
         out_.push_back('\n');
         --depth_;
         indent();
@@ -149,6 +155,115 @@ private:
         --depth_;
         indent();
         out_.push_back('}');
+    }
+
+    void writeAudioTracks(const std::vector<domain::AudioTrack>& tracks) {
+        if (tracks.empty()) {
+            out_ += "[]";
+            return;
+        }
+        out_ += "[\n";
+        ++depth_;
+        for (std::size_t i = 0; i < tracks.size(); ++i) {
+            indent();
+            writeAudioTrack(tracks[i]);
+            out_ += (i + 1 < tracks.size()) ? ",\n" : "\n";
+        }
+        --depth_;
+        indent();
+        out_.push_back(']');
+    }
+
+    void writeAudioTrack(const domain::AudioTrack& track) {
+        out_ += "{\n";
+        ++depth_;
+        key("id"); appendEscaped(out_, track.id.value); out_ += ",\n";
+        key("name"); appendEscaped(out_, track.name); out_ += ",\n";
+        key("volume"); out_ += formatDouble(track.volume); out_ += ",\n";
+        key("pan"); out_ += formatDouble(track.pan); out_ += ",\n";
+        key("muted"); out_ += track.muted ? "true" : "false"; out_ += ",\n";
+        key("soloed"); out_ += track.soloed ? "true" : "false"; out_ += ",\n";
+        key("recordArmed"); out_ += track.recordArmed ? "true" : "false"; out_ += ",\n";
+        key("inputDeviceId"); appendEscaped(out_, track.input.deviceId); out_ += ",\n";
+        key("inputChannel"); out_ += std::to_string(track.input.channelIndex); out_ += ",\n";
+        key("monitoring");
+        appendEscaped(out_, track.input.monitoring == domain::MonitoringMode::direct
+                ? "direct"
+                : track.input.monitoring == domain::MonitoringMode::software ? "software" : "off");
+        out_ += ",\n";
+        key("latencyCompensationSamples");
+        out_ += std::to_string(track.input.latencyCompensationSamples);
+        out_ += ",\n";
+        key("clips"); writeAudioClips(track.clips); out_ += ",\n";
+        key("crossfades"); writeCrossfades(track.crossfades); out_.push_back('\n');
+        --depth_;
+        indent();
+        out_.push_back('}');
+    }
+
+    void writeAudioClips(const std::vector<domain::AudioClip>& clips) {
+        if (clips.empty()) {
+            out_ += "[]";
+            return;
+        }
+        out_ += "[\n";
+        ++depth_;
+        for (std::size_t i = 0; i < clips.size(); ++i) {
+            indent();
+            const auto& clip = clips[i];
+            out_ += "{\n";
+            ++depth_;
+            key("id"); appendEscaped(out_, clip.id.value); out_ += ",\n";
+            key("name"); appendEscaped(out_, clip.name); out_ += ",\n";
+            key("assetPath"); appendEscaped(out_, clip.assetPath); out_ += ",\n";
+            key("startSample"); out_ += std::to_string(clip.startSample); out_ += ",\n";
+            key("sourceOffsetFrames"); out_ += std::to_string(clip.sourceOffsetFrames); out_ += ",\n";
+            key("lengthFrames"); out_ += std::to_string(clip.lengthFrames); out_ += ",\n";
+            key("sourceSampleRate"); out_ += formatDouble(clip.sourceSampleRate); out_ += ",\n";
+            key("sourceChannels"); out_ += std::to_string(clip.sourceChannels); out_ += ",\n";
+            key("gain"); out_ += formatDouble(clip.gain); out_ += ",\n";
+            key("fadeInFrames"); out_ += std::to_string(clip.fadeInFrames); out_ += ",\n";
+            key("fadeOutFrames"); out_ += std::to_string(clip.fadeOutFrames); out_ += ",\n";
+            key("stretchEnabled"); out_ += clip.stretchEnabled ? "true" : "false"; out_.push_back('\n');
+            --depth_;
+            indent();
+            out_.push_back('}');
+            out_ += (i + 1 < clips.size()) ? ",\n" : "\n";
+        }
+        --depth_;
+        indent();
+        out_.push_back(']');
+    }
+
+    void writeCrossfades(const std::vector<domain::AudioCrossfade>& crossfades) {
+        if (crossfades.empty()) {
+            out_ += "[]";
+            return;
+        }
+        out_ += "[\n";
+        ++depth_;
+        for (std::size_t i = 0; i < crossfades.size(); ++i) {
+            const auto& fade = crossfades[i];
+            indent();
+            out_ += "{ \"id\": "; appendEscaped(out_, fade.id.value);
+            out_ += ", \"leftClipId\": "; appendEscaped(out_, fade.leftClipId.value);
+            out_ += ", \"rightClipId\": "; appendEscaped(out_, fade.rightClipId.value);
+            out_ += ", \"lengthFrames\": "; out_ += std::to_string(fade.lengthFrames);
+            out_ += " }";
+            out_ += (i + 1 < crossfades.size()) ? ",\n" : "\n";
+        }
+        --depth_;
+        indent();
+        out_.push_back(']');
+    }
+
+    void writeEntityIds(const std::vector<domain::EntityId>& ids) {
+        out_.push_back('[');
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            if (i != 0) out_ += ", ";
+            appendEscaped(out_, ids[i].value);
+        }
+        out_.push_back(']');
     }
 
     void writeClips(const std::vector<domain::MidiClip>& clips) {
@@ -602,6 +717,74 @@ application::Result<domain::Project> ProjectSerializer::parse(const std::string&
                 }
             }
             project.tracks.push_back(std::move(track));
+        }
+    }
+
+    const auto* audioTracks = find(root, "audioTracks");
+    if (audioTracks != nullptr && audioTracks->kind == JsonValue::Kind::array
+        && audioTracks->array) {
+        for (const auto& trackValue : *audioTracks->array) {
+            domain::AudioTrack track;
+            track.id = domain::EntityId{getString(trackValue, "id")};
+            track.name = getString(trackValue, "name");
+            track.volume = static_cast<float>(getDouble(trackValue, "volume", 1.0));
+            track.pan = static_cast<float>(getDouble(trackValue, "pan", 0.0));
+            track.muted = getBool(trackValue, "muted", false);
+            track.soloed = getBool(trackValue, "soloed", false);
+            track.recordArmed = getBool(trackValue, "recordArmed", false);
+            track.input.deviceId = getString(trackValue, "inputDeviceId");
+            track.input.channelIndex = static_cast<int>(getInt(trackValue, "inputChannel", 0));
+            const auto monitoring = getString(trackValue, "monitoring");
+            track.input.monitoring = monitoring == "direct"
+                ? domain::MonitoringMode::direct
+                : monitoring == "software" ? domain::MonitoringMode::software
+                                             : domain::MonitoringMode::off;
+            track.input.latencyCompensationSamples =
+                getInt(trackValue, "latencyCompensationSamples", 0);
+
+            const auto* clips = find(trackValue, "clips");
+            if (clips != nullptr && clips->kind == JsonValue::Kind::array && clips->array) {
+                for (const auto& clipValue : *clips->array) {
+                    domain::AudioClip clip;
+                    clip.id = domain::EntityId{getString(clipValue, "id")};
+                    clip.name = getString(clipValue, "name");
+                    clip.assetPath = getString(clipValue, "assetPath");
+                    clip.startSample = getInt(clipValue, "startSample", 0);
+                    clip.sourceOffsetFrames = getInt(clipValue, "sourceOffsetFrames", 0);
+                    clip.lengthFrames = getInt(clipValue, "lengthFrames", 0);
+                    clip.sourceSampleRate = getDouble(clipValue, "sourceSampleRate", 48000.0);
+                    clip.sourceChannels = static_cast<int>(getInt(clipValue, "sourceChannels", 1));
+                    clip.gain = static_cast<float>(getDouble(clipValue, "gain", 1.0));
+                    clip.fadeInFrames = getInt(clipValue, "fadeInFrames", 0);
+                    clip.fadeOutFrames = getInt(clipValue, "fadeOutFrames", 0);
+                    clip.stretchEnabled = getBool(clipValue, "stretchEnabled", false);
+                    track.clips.push_back(std::move(clip));
+                }
+            }
+
+            const auto* crossfades = find(trackValue, "crossfades");
+            if (crossfades != nullptr && crossfades->kind == JsonValue::Kind::array
+                && crossfades->array) {
+                for (const auto& fadeValue : *crossfades->array) {
+                    domain::AudioCrossfade fade;
+                    fade.id = domain::EntityId{getString(fadeValue, "id")};
+                    fade.leftClipId = domain::EntityId{getString(fadeValue, "leftClipId")};
+                    fade.rightClipId = domain::EntityId{getString(fadeValue, "rightClipId")};
+                    fade.lengthFrames = getInt(fadeValue, "lengthFrames", 0);
+                    track.crossfades.push_back(std::move(fade));
+                }
+            }
+            project.audioTracks.push_back(std::move(track));
+        }
+    }
+
+    const auto* trackOrder = find(root, "trackOrder");
+    if (trackOrder != nullptr && trackOrder->kind == JsonValue::Kind::array
+        && trackOrder->array) {
+        for (const auto& idValue : *trackOrder->array) {
+            if (idValue.kind == JsonValue::Kind::string) {
+                project.trackOrder.push_back(domain::EntityId{idValue.text});
+            }
         }
     }
 

@@ -53,17 +53,82 @@ struct InstrumentTrack final {
     [[nodiscard]] bool operator==(const InstrumentTrack&) const = default;
 };
 
+enum class MonitoringMode : std::uint8_t {
+    off,
+    direct,
+    software
+};
+
+struct AudioInputRoute final {
+    std::string deviceId;
+    int channelIndex{};
+    MonitoringMode monitoring{MonitoringMode::off};
+    std::int64_t latencyCompensationSamples{};
+
+    [[nodiscard]] bool operator==(const AudioInputRoute&) const = default;
+};
+
+// Audio sources are immutable. Editing only changes the timeline/source window and gain envelope.
+// Sample ranges are half-open [start, start + length), matching the runtime time model.
+struct AudioClip final {
+    EntityId id;
+    std::string name;
+    std::string assetPath;
+    ProjectSample startSample{};
+    std::int64_t sourceOffsetFrames{};
+    std::int64_t lengthFrames{};
+    double sourceSampleRate{48000.0};
+    int sourceChannels{1};
+    float gain{1.0F};
+    std::int64_t fadeInFrames{};
+    std::int64_t fadeOutFrames{};
+    bool stretchEnabled{false};
+
+    [[nodiscard]] ProjectSample endSample() const noexcept {
+        return startSample + lengthFrames;
+    }
+    [[nodiscard]] bool operator==(const AudioClip&) const = default;
+};
+
+struct AudioCrossfade final {
+    EntityId id;
+    EntityId leftClipId;
+    EntityId rightClipId;
+    std::int64_t lengthFrames{};
+
+    [[nodiscard]] bool operator==(const AudioCrossfade&) const = default;
+};
+
+struct AudioTrack final {
+    EntityId id;
+    std::string name;
+    float volume{1.0F};
+    float pan{0.0F};
+    bool muted{false};
+    bool soloed{false};
+    bool recordArmed{false};
+    AudioInputRoute input;
+    std::vector<AudioClip> clips;
+    std::vector<AudioCrossfade> crossfades;
+
+    [[nodiscard]] bool operator==(const AudioTrack&) const = default;
+};
+
 // The versioned project root. trackOrder is implied by vector position for tracks/clips/notes,
 // but every entity also carries a stable UUID so identity survives reordering and persistence.
 struct Project final {
-    static constexpr int kSchemaVersion = 1;
+    static constexpr int kSchemaVersion = 2;
 
     EntityId id;
     std::string name;
     TempoMap tempoMap{};
     int timeSignatureNumerator{4};
     int timeSignatureDenominator{4};
+    // Kept under its original name for v1 source and manifest compatibility.
     std::vector<InstrumentTrack> tracks;
+    std::vector<AudioTrack> audioTracks;
+    // Mixed instrument/audio presentation order. Empty means legacy order: instruments then audio.
+    std::vector<EntityId> trackOrder;
 
     [[nodiscard]] bool operator==(const Project&) const = default;
 };

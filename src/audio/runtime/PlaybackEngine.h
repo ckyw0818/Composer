@@ -6,11 +6,12 @@
 #include "domain/Project.h"
 
 #include <atomic>
+#include <filesystem>
 #include <memory>
 
 namespace composer::audio {
 
-// Bridges the message-thread project model to the audio callback for S1 playback.
+// Bridges the message-thread project model to the audio callback for arranged project playback.
 //
 // Transport state (playing, playhead, loop) is atomic so the callback reads it without locking.
 // When the project is edited, the UI thread compiles a fresh ProjectSnapshot and publishes a new
@@ -22,6 +23,7 @@ public:
 
     // Message thread: recompile and publish a new render plan for the given project.
     void setProject(const domain::Project& project, domain::Revision revision);
+    void setAssetRoot(std::filesystem::path assetRoot);
 
     // Message thread: transport controls.
     void play() noexcept { playing_.store(true, std::memory_order_relaxed); }
@@ -29,6 +31,9 @@ public:
     void togglePlay() noexcept;
     void setLooping(const bool looping) noexcept {
         looping_.store(looping, std::memory_order_relaxed);
+    }
+    void setMetronomeEnabled(const bool enabled) noexcept {
+        metronomeEnabled_.store(enabled, std::memory_order_relaxed);
     }
     void setPlayheadSamples(domain::ProjectSample sample) noexcept;
     void rewind() noexcept { setPlayheadSamples(0); }
@@ -38,6 +43,9 @@ public:
     }
     [[nodiscard]] bool isLooping() const noexcept {
         return looping_.load(std::memory_order_relaxed);
+    }
+    [[nodiscard]] bool isMetronomeEnabled() const noexcept {
+        return metronomeEnabled_.load(std::memory_order_relaxed);
     }
     [[nodiscard]] domain::ProjectSample playheadSamples() const noexcept {
         return playhead_.load(std::memory_order_relaxed);
@@ -56,11 +64,15 @@ public:
 private:
     std::atomic<std::shared_ptr<ProjectRenderer>> renderer_;
     AudioSpec spec_{};
+    std::filesystem::path assetRoot_{};
 
     std::atomic<bool> playing_{false};
     std::atomic<bool> looping_{true};
+    std::atomic<bool> metronomeEnabled_{false};
     std::atomic<domain::ProjectSample> playhead_{0};
     std::atomic<domain::ProjectSample> length_{0};
+    std::atomic<domain::ProjectSample> samplesPerBeat_{24000};
+    std::atomic<int> beatsPerBar_{4};
     std::atomic<double> sampleRate_{48000.0};
 };
 

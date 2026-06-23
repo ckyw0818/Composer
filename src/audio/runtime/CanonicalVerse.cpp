@@ -55,8 +55,6 @@ Project CanonicalVerse::makeProject() {
     ProjectEditor editor{seed, ids};
 
     const auto piano = expectValue(editor.addInstrumentTrack("Piano", "builtin.piano"));
-    // Guitar is a pitched MIDI track in S1 (same chord tool as piano). Its built-in sample voice
-    // and rhythm-generation strums are S2 work; here it shares the provisional render tone.
     const auto guitar = expectValue(editor.addInstrumentTrack("Guitar", "builtin.guitar"));
     const auto bass = expectValue(editor.addInstrumentTrack("Bass", "builtin.bass"));
     const auto drums = expectValue(editor.addInstrumentTrack("Drums", "builtin.drums"));
@@ -81,23 +79,31 @@ Project CanonicalVerse::makeProject() {
         std::ignore = expectValue(
             editor.insertChord(piano, pianoClip, barStart, kTicksPerBar, spec));
 
-        // Guitar: same chord one octave up, comped on beats 2 and 4 (half-note hits).
+        // Guitar: generate a deterministic two-beat strum from one full-bar source chord.
         ChordSpec guitarSpec = spec;
         guitarSpec.octave = 5;
         guitarSpec.velocity = 80;
-        for (int beat = 1; beat < beatsPerBar; beat += 2) {
-            const Tick hitStart = barStart + static_cast<Tick>(beat) * kTicksPerBeat;
-            std::ignore = expectValue(
-                editor.insertChord(guitar, guitarClip, hitStart, kTicksPerBeat, guitarSpec));
-        }
+        const auto guitarSource = expectValue(
+            editor.insertChord(guitar, guitarClip, barStart, kTicksPerBar, guitarSpec));
+        ProjectEditor::RhythmApply guitarRhythm;
+        guitarRhythm.pattern = domain::RhythmPattern::strum;
+        guitarRhythm.subdivision = kTicksPerBeat * 2;
+        guitarRhythm.seed = static_cast<std::uint64_t>(bar + 1);
+        guitarRhythm.expectedRevision = editor.revision();
+        guitarRhythm.sourceNoteIds = guitarSource;
+        std::ignore = expectValue(editor.applyRhythm(guitar, guitarClip, guitarRhythm));
 
-        // Bass: root note an octave below, one per beat.
+        // Bass: generate one root pulse per beat from a sustained source note.
         const domain::Pitch bassRoot = static_cast<domain::Pitch>(36 + chord.rootPitchClass);
-        for (int beat = 0; beat < beatsPerBar; ++beat) {
-            const Tick noteStart = barStart + static_cast<Tick>(beat) * kTicksPerBeat;
-            std::ignore = expectValue(editor.addNote(
-                bass, bassClip, noteStart, kTicksPerBeat - 10, bassRoot, 100));
-        }
+        const auto bassSource = expectValue(
+            editor.addNote(bass, bassClip, barStart, kTicksPerBar, bassRoot, 100));
+        ProjectEditor::RhythmApply bassRhythm;
+        bassRhythm.pattern = domain::RhythmPattern::bassPulse;
+        bassRhythm.subdivision = kTicksPerBeat;
+        bassRhythm.seed = static_cast<std::uint64_t>(bar + 101);
+        bassRhythm.expectedRevision = editor.revision();
+        bassRhythm.sourceNoteIds = {bassSource};
+        std::ignore = expectValue(editor.applyRhythm(bass, bassClip, bassRhythm));
 
         // Drums: a steady pulse on every beat (single percussion pitch for S1).
         for (int beat = 0; beat < beatsPerBar; ++beat) {

@@ -3,6 +3,7 @@
 #include "audio/runtime/ProjectCompiler.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace composer::audio {
 
@@ -12,15 +13,23 @@ PlaybackEngine::PlaybackEngine() {
 }
 
 void PlaybackEngine::setProject(const domain::Project& project, const domain::Revision revision) {
-    auto snapshot = ProjectCompiler::compile(project, revision);
+    auto snapshot = ProjectCompiler::compile(project, revision, assetRoot_);
     length_.store(snapshot.lengthSamples, std::memory_order_relaxed);
     sampleRate_.store(snapshot.sampleRate, std::memory_order_relaxed);
+    samplesPerBeat_.store(std::max<domain::ProjectSample>(
+        1, project.tempoMap.ticksToSamples(domain::kPpq)), std::memory_order_relaxed);
+    beatsPerBar_.store(std::max(1, project.timeSignatureNumerator),
+        std::memory_order_relaxed);
     if (playhead_.load(std::memory_order_relaxed) > snapshot.lengthSamples) {
         playhead_.store(0, std::memory_order_relaxed);
     }
     auto fresh = std::make_shared<ProjectRenderer>(std::move(snapshot));
     fresh->prepare(spec_);
     renderer_.store(std::move(fresh), std::memory_order_release);
+}
+
+void PlaybackEngine::setAssetRoot(std::filesystem::path assetRoot) {
+    assetRoot_ = std::move(assetRoot);
 }
 
 void PlaybackEngine::togglePlay() noexcept {
@@ -74,6 +83,25 @@ void PlaybackEngine::process(const RenderBlock& block) noexcept {
         .frameCount = block.frameCount,
         .startSample = start};
     current->render(playBlock);
+
+    if (metronomeEnabled_.load(std::memory_order_relaxed)) {
+        const auto beatSamples = samplesPerBeat_.load(std::memory_order_relaxed);
+        const auto barBeats = beatsPerBar_.load(std::memory_order_relaxed);
+        constexpr domain::ProjectSample pulseSamples = 96;
+        for (std::size_t frame = 0; frame < block.frameCount; ++frame) {
+            const auto position = start + static_cast<domain::ProjectSample>(frame);
+            const auto phase = position % beatSamples;
+            if (phase < 0 || phase >= pulseSamples) continue;
+            const auto beat = position / beatSamples;
+            const float accent = beat % barBeats == 0 ? 0.20F : 0.12F;
+            const float click = accent
+                * (1.0F - static_cast<float>(phase) / static_cast<float>(pulseSamples));
+            for (std::size_t channel = 0; channel < block.outputChannels; ++channel) {
+                block.outputs[channel][frame] = std::clamp(
+                    block.outputs[channel][frame] + click, -1.0F, 1.0F);
+            }
+        }
+    }
 
     playhead_.store(start + static_cast<domain::ProjectSample>(block.frameCount),
         std::memory_order_relaxed);

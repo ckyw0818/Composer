@@ -8,8 +8,8 @@
 
 namespace composer::audio {
 
-// Realtime renderer for a compiled ProjectSnapshot. Synthesizes each note as a decaying sine with
-// a fixed, preallocated voice pool so render() performs zero allocation, locking, or file I/O.
+// Realtime renderer for a compiled ProjectSnapshot. Synthesizes the built-in timbres with a fixed,
+// preallocated voice pool so render() performs zero allocation, locking, or file I/O.
 //
 // The snapshot is moved in at construction (off the audio thread). render() walks a note cursor
 // and a bounded set of active voices; both are members sized at construction, never grown in the
@@ -28,14 +28,24 @@ public:
 private:
     struct Voice final {
         bool active{false};
+        domain::ProjectSample startSample{};
         domain::ProjectSample endSample{};
         double phase{};
         double phaseIncrement{};
         float amplitude{};
+        float leftGain{1.0F};
+        float rightGain{1.0F};
+        domain::RenderTimbre timbre{domain::RenderTimbre::sine};
+        std::uint32_t noiseState{1};
+    };
+
+    struct StereoSample final {
+        float left{};
+        float right{};
     };
 
     void startDueNotes(domain::ProjectSample sample) noexcept;
-    [[nodiscard]] float renderSample(domain::ProjectSample sample) noexcept;
+    [[nodiscard]] StereoSample renderSample(domain::ProjectSample sample) noexcept;
     void seekTo(domain::ProjectSample sample) noexcept;  // reset voices + cursor for a discontinuity
 
     ProjectSnapshot snapshot_{};

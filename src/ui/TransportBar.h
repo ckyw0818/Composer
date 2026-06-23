@@ -16,6 +16,11 @@ public:
     explicit TransportBar(audio::PlaybackEngine& engine, double tempoBpm);
     ~TransportBar() override;
 
+    std::function<void(double beatsPerMinute)> onTempoChanged;
+    std::function<void()> onRecordClicked;
+    void setTempoBpm(double beatsPerMinute);
+    void setRecording(bool recording);
+
     void paint(juce::Graphics& graphics) override;
     void resized() override;
 
@@ -28,9 +33,12 @@ private:
 
     juce::TextButton rewindButton_{"|<"};
     juce::TextButton playButton_{"Play"};
+    juce::TextButton recordButton_{"Record"};
     juce::TextButton loopButton_{"Loop"};
+    juce::TextButton metronomeButton_{"Metro"};
     juce::Label positionLabel_;
-    juce::Label tempoLabel_;
+    juce::Slider tempo_;
+    juce::Label signatureLabel_;
 };
 
 }  // namespace composer::ui
