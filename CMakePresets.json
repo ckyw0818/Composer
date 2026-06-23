@@ -1,0 +1,70 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-dev",
+      "displayName": "Windows developer build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/windows-dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "COMPOSER_BUILD_APP": "ON",
+        "COMPOSER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows release gate build",
+      "inherits": "windows-dev",
+      "binaryDir": "${sourceDir}/build/windows-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-dev",
+      "configurePreset": "windows-dev",
+      "jobs": 4
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "jobs": 4
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "quick",
+      "configurePreset": "windows-dev",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "audio" } },
+      "execution": { "jobs": 4 }
+    },
+    {
+      "name": "integration",
+      "configurePreset": "windows-dev",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "integration" } }
+    },
+    {
+      "name": "audio",
+      "configurePreset": "windows-release",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "audio" } }
+    },
+    {
+      "name": "release",
+      "configurePreset": "windows-release",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 1 }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+name: S0 Foundation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Bootstrap and quick tests
+        shell: powershell
+        run: .\scripts\dev.ps1 bootstrap
+      - name: Release configuration
+        shell: powershell
+        run: .\scripts\dev.ps1 configure -Preset windows-release
+      - name: Release build
+        shell: powershell
+        run: .\scripts\dev.ps1 build -Preset windows-release
+      - name: S0 release gate
+        shell: powershell
+        run: .\scripts\dev.ps1 test -Suite release
